@@ -1,4 +1,4 @@
-- hosts: *
+- hosts: all
   tasks:
     - name: Install httpd
       ansible.builtin.dnf:
