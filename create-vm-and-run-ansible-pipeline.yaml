@@ -1,0 +1,157 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: create-vm-and-run-ansible
+  namespace: kubevirt
+spec:
+  params:
+    - name: sourceTemplateName
+      description: Name of the Template which is used to create the installer Template.
+      type: string
+      default: fedora-with-pub-key
+    - name: sourceTemplateNamespace
+      description: Namespace of the Template which is used to create the installer Template.
+      type: string
+      default: kubevirt
+    - name: playbookGitRepoURL
+      description: URL to the git repository of the playbook that should be run.
+      type: string
+    - name: playbookGitRevision
+      description: Git revision of the playbook that should be run.
+      type: string
+      default: main
+    - name: playbookFilename
+      description: Filename of the playbook that should be run.
+      type: string
+      default: playbook.yml
+    - name: ansibleUser
+      description: Username to login to the VirtualMachine with Ansible.
+      type: string
+      default: fedora
+  workspaces:
+    - name: ansible
+  tasks:
+    - name: generate-ssh-keys
+      timeout: 10m
+      taskRef:
+        kind: ClusterTask
+        name: generate-ssh-keys
+    - name: create-vm-from-template
+      params:
+        - name: templateName
+          value: $(params.sourceTemplateName)
+        - name: templateNamespace
+          value: $(params.sourceTemplateNamespace)
+        - name: templateParams
+          value:
+            - "PUB_KEY_SECRET_NAME:$(tasks.generate-ssh-keys.results.publicKeySecretName)"
+        - name: runStrategy
+          value: RerunOnFailure
+        - name: startVM
+          value: "true"
+      runAfter:
+        - generate-ssh-keys
+      timeout: 10m
+      taskRef:
+        kind: ClusterTask
+        name: create-vm-from-template
+    - name: wait-for-vmi-status
+      params:
+        - name: vmiName
+          value: $(tasks.create-vm-from-template.results.name)
+        - name: successCondition
+          value: status.guestOSInfo.id notin ()
+        - name: failureCondition
+          value: status.phase in (Failed, Unknown)
+      runAfter:
+        - create-vm-from-template
+      timeout: 1h
+      taskRef:
+        kind: ClusterTask
+        name: wait-for-vmi-status
+    - name: create-inventory
+      params:
+        - name: SCRIPT
+          value: |
+            #!/usr/bin/env bash
+            set -x
+
+            mkdir \
+              $(workspaces.manifest-dir.path)/env \
+              $(workspaces.manifest-dir.path)/inventory
+
+            oc get \
+              secret \
+              $(tasks.generate-ssh-keys.results.privateKeySecretName) \
+              -n $(tasks.generate-ssh-keys.results.privateKeySecretNamespace) \
+              -o go-template='{{ index .data "ssh-privatekey" | base64decode }}' \
+              > $(workspaces.manifest-dir.path)/env/ssh_key
+
+            oc get \
+              vmi \
+              $(tasks.create-vm-from-template.results.name) \
+              -n $(tasks.create-vm-from-template.results.namespace) \
+              -o go-template='vm ansible_user=$(params.ansibleUser) ansible_host={{ index (index .status.interfaces 0) "ipAddress" }}' \
+              > $(workspaces.manifest-dir.path)/inventory/hosts
+      workspaces:
+        - name: manifest-dir
+          workspace: ansible
+      runAfter:
+        - wait-for-vmi-status
+      timeout: 10m
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: git-clone
+      params:
+        - name: url
+          value: $(params.playbookGitRepoURL)
+        - name: revision
+          value: $(params.playbookGitRevision)
+        - name: deleteExisting
+          value: "false"
+      workspaces:
+        - name: output
+          workspace: ansible
+      runAfter:
+        - create-inventory
+      timeout: 10m
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+    - name: ansible-runner
+      params:
+        - name: project-dir
+          value: .
+        - name: args
+          value:
+            - -p
+            - $(params.playbookFilename)
+      workspaces:
+        - name: runner-dir
+          workspace: ansible
+      runAfter:
+        - git-clone
+      timeout: 1h
+      taskRef:
+        kind: Task
+        name: ansible-runner
+  results:
+    - name: vmName
+      description: Name of the created VirtualMachine
+      value: $(tasks.create-vm-from-template.results.name)
+    - name: vmNamespace
+      description: Namespace of the created VirtualMachine
+      value: $(tasks.create-vm-from-template.results.namespace)
+    - name: publicKeySecretName
+      description: Name of the created public key Secret
+      value: $(tasks.generate-ssh-keys.results.publicKeySecretName)
+    - name: publicKeySecretNamespace
+      description: Namespace of the created public key Secret
+      value: $(tasks.generate-ssh-keys.results.publicKeySecretNamespace)
+    - name: privateKeySecretName
+      description: Name of the created private key Secret
+      value: $(tasks.generate-ssh-keys.results.privateKeySecretName)
+    - name: privateKeySecretNamespace
+      description: Namespace of the created private key Secret
+      value: $(tasks.generate-ssh-keys.results.privateKeySecretNamespace)

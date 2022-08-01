@@ -1,0 +1,129 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  annotations:
+    defaults.template.kubevirt.io/disk: rootdisk
+    description: 'Template for Fedora with PUB_KEY_SECRET_NAME param.'
+    iconClass: icon-fedora
+    name.os.template.kubevirt.io/fedora34: Fedora 34 or higher
+    name.os.template.kubevirt.io/fedora35: Fedora 34 or higher
+    name.os.template.kubevirt.io/silverblue34: Fedora 34 or higher
+    name.os.template.kubevirt.io/silverblue35: Fedora 34 or higher
+    openshift.io/display-name: Fedora 34+ VM
+    tags: hidden,kubevirt,virtualmachine,fedora
+    template.kubevirt.io/editable: |
+      /objects[0].spec.template.spec.domain.cpu.sockets
+      /objects[0].spec.template.spec.domain.cpu.cores
+      /objects[0].spec.template.spec.domain.cpu.threads
+      /objects[0].spec.template.spec.domain.resources.requests.memory
+      /objects[0].spec.template.spec.domain.devices.disks
+      /objects[0].spec.template.spec.volumes
+      /objects[0].spec.template.spec.networks
+    template.openshift.io/bindable: "false"
+  labels:
+    template.kubevirt.io/type: vm
+  name: fedora-with-pub-key
+  namespace: kubevirt
+objects:
+- apiVersion: kubevirt.io/v1
+  kind: VirtualMachine
+  metadata:
+    annotations:
+      vm.kubevirt.io/validations: |
+        [
+          {
+            "name": "minimal-required-memory",
+            "path": "jsonpath::.spec.domain.resources.requests.memory",
+            "rule": "integer",
+            "message": "This VM requires more memory.",
+            "min": 1073741824
+          }
+        ]
+    labels:
+      app: ${NAME}
+      vm.kubevirt.io/template: fedora-with-pub-key
+    name: ${NAME}
+  spec:
+    dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: ${NAME}
+      spec:
+        sourceRef:
+          kind: DataSource
+          name: ${DATA_SOURCE_NAME}
+          namespace: ${DATA_SOURCE_NAMESPACE}
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+    running: false
+    template:
+      metadata:
+        annotations: {}
+        labels: {}
+      spec:
+        domain:
+          cpu:
+            cores: 1
+            sockets: 1
+            threads: 1
+          devices:
+            disks:
+            - disk:
+                bus: virtio
+              name: ${NAME}
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+            interfaces:
+            - masquerade: {}
+              name: default
+            networkInterfaceMultiqueue: true
+            rng: {}
+          machine:
+            type: pc-q35-rhel8.4.0
+          resources:
+            requests:
+              memory: 2Gi
+        evictionStrategy: LiveMigrate
+        networks:
+        - name: default
+          pod: {}
+        terminationGracePeriodSeconds: 180
+        accessCredentials:
+        - sshPublicKey:
+            source:
+              secret:
+                secretName: ${PUB_KEY_SECRET_NAME}
+            propagationMethod:
+              configDrive: {}
+        volumes:
+        - dataVolume:
+            name: ${NAME}
+          name: ${NAME}
+        - cloudInitConfigDrive:
+            userData: |-
+              #cloud-config
+              user: fedora
+              password: ${CLOUD_USER_PASSWORD}
+              chpasswd: { expire: False }
+          name: cloudinitdisk
+parameters:
+- description: VM name
+  from: fedora-[a-z0-9]{16}
+  generate: expression
+  name: NAME
+- description: Name of the DataSource to clone
+  name: DATA_SOURCE_NAME
+  value: fedora
+- description: Namespace of the DataSource
+  name: DATA_SOURCE_NAMESPACE
+  value: openshift-virtualization-os-images
+- description: Randomized password for the cloud-init user fedora
+  from: '[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}'
+  generate: expression
+  name: CLOUD_USER_PASSWORD
+- description: Public key secret name
+  name: PUB_KEY_SECRET_NAME
