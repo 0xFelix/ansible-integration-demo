@@ -1,6 +1,4 @@
 - hosts: all
-  become: yes
-  become_method: runas
   tasks:
     - name: Ensure 7-Zip is installed via Chocolatey
       chocolatey.chocolatey.win_chocolatey:
