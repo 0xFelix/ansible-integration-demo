@@ -2,6 +2,6 @@
   become: yes
   tasks:
     - name: Ensure 7-Zip is installed via Chocolatey
-      win_chocolatey:
+      chocolatey.chocolatey.win_chocolatey:
         name: 7zip
         state: latest

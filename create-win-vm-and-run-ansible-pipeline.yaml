@@ -127,15 +127,3 @@ spec:
     - name: vmNamespace
       description: Namespace of the created VirtualMachine
       value: $(tasks.create-vm-from-template.results.namespace)
-    - name: publicKeySecretName
-      description: Name of the created public key Secret
-      value: $(tasks.generate-ssh-keys.results.publicKeySecretName)
-    - name: publicKeySecretNamespace
-      description: Namespace of the created public key Secret
-      value: $(tasks.generate-ssh-keys.results.publicKeySecretNamespace)
-    - name: privateKeySecretName
-      description: Name of the created private key Secret
-      value: $(tasks.generate-ssh-keys.results.privateKeySecretName)
-    - name: privateKeySecretNamespace
-      description: Namespace of the created private key Secret
-      value: $(tasks.generate-ssh-keys.results.privateKeySecretNamespace)
