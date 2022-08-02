@@ -1,0 +1,164 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  annotations:
+    defaults.template.kubevirt.io/disk: rootdisk
+    defaults.template.kubevirt.io/network: default
+    description: Template for Microsoft Windows 10 VM with sysprep disk.
+    iconClass: icon-windows
+    name.os.template.kubevirt.io/win10: Microsoft Windows 10
+    openshift.io/display-name: Microsoft Windows 10 VM
+    tags: hidden,kubevirt,virtualmachine,windows
+    template.kubevirt.io/editable: |
+      /objects[0].spec.template.spec.domain.cpu.cores
+      /objects[0].spec.template.spec.domain.resources.requests.memory
+      /objects[0].spec.template.spec.domain.devices.disks
+      /objects[0].spec.template.spec.volumes
+      /objects[0].spec.template.spec.networks
+    template.openshift.io/bindable: "false"
+  labels:
+    template.kubevirt.io/type: vm
+  name: windows10-with-sysprep
+  namespace: kubevirt
+objects:
+- apiVersion: kubevirt.io/v1
+  kind: VirtualMachine
+  metadata:
+    annotations:
+      vm.kubevirt.io/validations: |
+        [
+          {
+            "name": "minimal-required-memory",
+            "path": "jsonpath::.spec.domain.resources.requests.memory",
+            "rule": "integer",
+            "message": "This VM requires more memory.",
+            "min": 2147483648
+          }, {
+            "name": "windows-virtio-bus",
+            "path": "jsonpath::.spec.domain.devices.disks[*].disk.bus",
+            "valid": "jsonpath::.spec.domain.devices.disks[*].disk.bus",
+            "rule": "enum",
+            "message": "virto disk bus type has better performance, install virtio drivers in VM and change bus type",
+            "values": ["virtio"],
+            "justWarning": true
+          }, {
+            "name": "windows-disk-bus",
+            "path": "jsonpath::.spec.domain.devices.disks[*].disk.bus",
+            "valid": "jsonpath::.spec.domain.devices.disks[*].disk.bus",
+            "rule": "enum",
+            "message": "disk bus has to be either virtio or sata or scsi",
+            "values": ["virtio", "sata", "scsi"]
+          }, {
+            "name": "windows-cd-bus",
+            "path": "jsonpath::.spec.domain.devices.disks[*].cdrom.bus",
+            "valid": "jsonpath::.spec.domain.devices.disks[*].cdrom.bus",
+            "rule": "enum",
+            "message": "cd bus has to be sata",
+            "values": ["sata"]
+          }
+        ]
+    labels:
+      app: ${NAME}
+      vm.kubevirt.io/template: windows10-with-sysprep
+    name: ${NAME}
+  spec:
+    dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: ${NAME}
+      spec:
+        sourceRef:
+          kind: DataSource
+          name: ${DATA_SOURCE_NAME}
+          namespace: ${DATA_SOURCE_NAMESPACE}
+        storage:
+          resources:
+            requests:
+              storage: 60Gi
+    running: false
+    template:
+      metadata:
+        annotations: {}
+        labels: {}
+      spec:
+        domain:
+          clock:
+            timer:
+              hpet:
+                present: false
+              hyperv: {}
+              pit:
+                tickPolicy: delay
+              rtc:
+                tickPolicy: catchup
+            utc: {}
+          cpu:
+            cores: 1
+            sockets: 2
+            threads: 1
+          devices:
+            disks:
+            - disk:
+                bus: sata
+              name: ${NAME}
+            - disk:
+                bus: cdrom
+              name: sysprep
+            inputs:
+            - bus: usb
+              name: tablet
+              type: tablet
+            interfaces:
+            - masquerade: {}
+              model: e1000e
+              name: default
+          features:
+            acpi: {}
+            apic: {}
+            hyperv:
+              frequencies: {}
+              ipi: {}
+              reenlightenment: {}
+              relaxed: {}
+              reset: {}
+              runtime: {}
+              spinlocks:
+                spinlocks: 8191
+              synic: {}
+              synictimer:
+                direct: {}
+              tlbflush: {}
+              vapic: {}
+              vpindex: {}
+          machine:
+            type: pc-q35-rhel8.4.0
+          resources:
+            requests:
+              memory: 8Gi
+        evictionStrategy: LiveMigrate
+        networks:
+        - name: default
+          pod: {}
+        terminationGracePeriodSeconds: 3600
+        volumes:
+        - dataVolume:
+            name: ${NAME}
+          name: ${NAME}
+        - sysprep:
+            configMap:
+              name: ${SYSPREP_CONFIGMAP_NAME}
+          name: sysprep
+parameters:
+- description: VM name
+  from: windows-[a-z0-9]{6}
+  generate: expression
+  name: NAME
+- description: Name of the DataSource to clone
+  name: DATA_SOURCE_NAME
+  value: win10
+- description: Namespace of the DataSource
+  name: DATA_SOURCE_NAMESPACE
+  value: openshift-virtualization-os-images
+- description: sysprep ConfigMap name
+  name: SYSPREP_CONFIGMAP_NAME

@@ -1,14 +1,14 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: create-vm-and-run-ansible
+  name: create-win-vm-and-run-ansible
   namespace: kubevirt
 spec:
   params:
     - name: sourceTemplateName
       description: Name of the Template which is used to create the VirtualMachine to run Ansible on.
       type: string
-      default: fedora-with-pub-key
+      default: windows10-with-sysprep
     - name: sourceTemplateNamespace
       description: Namespace of the Template which is used to create the VirtualMachine to run Ansible on.
       type: string
@@ -24,18 +24,13 @@ spec:
       description: Filename of the playbook that should be run.
       type: string
       default: playbook.yml
-    - name: ansibleUser
-      description: Username to login to the VirtualMachine with Ansible.
+    - name: sysprepConfigMapName
+      description: Name of ConfigMap that contains sysprep unattend.xml for basic setup of the VM and configuring remoting.
       type: string
-      default: fedora
+      default: windows10-unattend-winrm
   workspaces:
     - name: ansible
   tasks:
-    - name: generate-ssh-keys
-      timeout: 10m
-      taskRef:
-        kind: ClusterTask
-        name: generate-ssh-keys
     - name: create-vm-from-template
       params:
         - name: templateName
@@ -44,13 +39,11 @@ spec:
           value: $(params.sourceTemplateNamespace)
         - name: templateParams
           value:
-            - "PUB_KEY_SECRET_NAME:$(tasks.generate-ssh-keys.results.publicKeySecretName)"
+            - "SYSPREP_CONFIGMAP_NAME:$(params.sysprepConfigMapName)"
         - name: runStrategy
           value: RerunOnFailure
         - name: startVM
           value: "true"
-      runAfter:
-        - generate-ssh-keys
       timeout: 10m
       taskRef:
         kind: ClusterTask
@@ -76,22 +69,13 @@ spec:
             #!/usr/bin/env bash
             set -x
 
-            mkdir \
-              $(workspaces.manifest-dir.path)/env \
-              $(workspaces.manifest-dir.path)/inventory
-
-            oc get \
-              secret \
-              $(tasks.generate-ssh-keys.results.privateKeySecretName) \
-              -n $(tasks.generate-ssh-keys.results.privateKeySecretNamespace) \
-              -o go-template='{{ index .data "ssh-privatekey" | base64decode }}' \
-              > $(workspaces.manifest-dir.path)/env/ssh_key
+            mkdir $(workspaces.manifest-dir.path)/inventory
 
             oc get \
               vmi \
               $(tasks.create-vm-from-template.results.name) \
               -n $(tasks.create-vm-from-template.results.namespace) \
-              -o go-template='vm ansible_user=$(params.ansibleUser) ansible_host={{ index (index .status.interfaces 0) "ipAddress" }}' \
+              -o go-template='vm ansible_user=Administrator ansible_password=password ansible_connection=winrm ansible_winrm_transport=credssp ansible_winrm_server_cert_validation=ignore ansible_host={{ index (index .status.interfaces 0) "ipAddress" }}' \
               > $(workspaces.manifest-dir.path)/inventory/hosts
       workspaces:
         - name: manifest-dir
