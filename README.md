@@ -28,7 +28,7 @@ Make sure to setup `oc` and login first. Make also sure that [Tekton CLI](https:
 4. Deploy [`tekton-tasks-operator`](https://github.com/kubevirt/tekton-tasks-operator) by running `make deploy` in the cloned repo
 5. Create the TTO CR by running `oc create -f config/samples/tektontasks_v1alpha1_tektontasks.yaml` in the cloned repo
 6. Install `ansible-runner` task by running `tkn hub install task ansible-runner`
-7. Run `windows10-installer` Pipeline to populate the Windows 10 boot source
+7. Run [`windows10-installer`](https://github.com/kubevirt/kubevirt-tekton-tasks/tree/main/examples/pipelines/windows10-installer) Pipeline to populate the Windows 10 boot source
 
 ## Setting up the pipeline
 
