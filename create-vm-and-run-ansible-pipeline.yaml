@@ -6,11 +6,11 @@ metadata:
 spec:
   params:
     - name: sourceTemplateName
-      description: Name of the Template which is used to create the installer Template.
+      description: Name of the Template which is used to create the VirtualMachine to run Ansible on.
       type: string
       default: fedora-with-pub-key
     - name: sourceTemplateNamespace
-      description: Namespace of the Template which is used to create the installer Template.
+      description: Namespace of the Template which is used to create the VirtualMachine to run Ansible on.
       type: string
       default: kubevirt
     - name: playbookGitRepoURL
