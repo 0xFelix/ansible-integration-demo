@@ -1,12 +1,7 @@
 - hosts: all
   become: yes
   tasks:
-    - name: Install httpd
-      ansible.builtin.dnf:
-        name: httpd
+    - name: Ensure 7-Zip is installed via Chocolatey
+      win_chocolatey:
+        name: 7zip
         state: latest
-    - name: Enable and start httpd
-      ansible.builtin.systemd:
-        name: httpd
-        state: started
-        enabled: yes
