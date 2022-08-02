@@ -9,7 +9,7 @@ Make sure to setup `oc` and login first. Make also sure that [Tekton CLI](https:
 1. Install `OpenShift Pipelines` from OperatorHub
 2. Install `OpenShift Virtualization` from OperatorHub and create `HyperConverged`
 3. Create namespace/project `kubevirt` by running `oc new-project kubevirt`
-4. Deploy `kubevirt-tekton-tasks` by running `make deploy` in the cloned repo
+4. Deploy [`kubevirt-tekton-tasks`](https://github.com/kubevirt/kubevirt-tekton-tasks) by running `make deploy` in the cloned repo
 5. Install `ansible-runner` task by running `tkn hub install task ansible-runner`
 
 ## Setting up the pipeline
