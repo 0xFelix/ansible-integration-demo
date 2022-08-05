@@ -111,7 +111,7 @@ objects:
               type: tablet
             interfaces:
             - masquerade: {}
-              model: e1000e
+              model: virtio
               name: default
           features:
             acpi: {}
