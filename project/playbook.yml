@@ -1,5 +1,11 @@
 - hosts: all
+  gather_facts: no
   tasks:
+    - name: Wait for system to become reachable over WinRM
+      ansible.builtin.wait_for_connection:
+        timeout: 3600
+    - name: Gather facts for first time
+      ansible.builtin.setup:
     - name: Ensure 7-Zip is installed via Chocolatey
       chocolatey.chocolatey.win_chocolatey:
         name: 7zip
