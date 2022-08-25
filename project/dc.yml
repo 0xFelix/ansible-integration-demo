@@ -51,6 +51,9 @@
         state: restarted
     - name: Provision samba DC
       ansible.builtin.command: samba-tool domain provision --server-role=dc --use-rfc2307 --dns-backend=SAMBA_INTERNAL --realm={{ DOMAIN | upper }} --domain={{ DOMAIN.split('.')[0] | upper }} --adminpass='{{ ADMIN_PASSWORD }}'
+    - name: Regather dns facts
+      ansible.builtin.setup:
+        gather_subset: dns
     - name: Configure dns forwarder
       ansible.builtin.lineinfile:
         path: /etc/samba/smb.conf
