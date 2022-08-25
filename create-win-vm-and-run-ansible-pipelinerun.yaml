@@ -1,18 +1,18 @@
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  generateName: create-vm-and-run-ansible-pipelinerun-
+  generateName: create-win-vm-and-run-ansible-pipelinerun-
   namespace: kubevirt
 spec:
   pipelineRef:
-    name: create-vm-and-run-ansible
+    name: create-win-vm-and-run-ansible
   params:
     - name: playbookGitRepoURL
       value: https://github.com/0xFelix/ansible-integration-demo.git
     - name: playbookGitRevision
       value: addc
     - name: playbookFilename
-      value: dc.yml
+      value: member.yml
   workspaces:
     - name: ansible
       volumeClaimTemplate:
@@ -23,8 +23,6 @@ spec:
             requests:
               storage: 1Gi
   taskRunSpecs:
-    - pipelineTaskName: generate-ssh-keys
-      taskServiceAccountName: generate-ssh-keys-task
     - pipelineTaskName: create-vm-from-template
       taskServiceAccountName: create-vm-from-template-task
     - pipelineTaskName: wait-for-vmi-status

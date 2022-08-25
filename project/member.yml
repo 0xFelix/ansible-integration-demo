@@ -1,0 +1,21 @@
+- hosts: all
+  gather_facts: no
+	vars:
+		DOMAIN: example.cnv
+    ADMIN_PASSWORD: pa$$w0rd
+  tasks:
+    - name: Wait for system to become reachable over WinRM
+      ansible.builtin.wait_for_connection:
+        timeout: 3600
+    - name: Gather facts for first time
+      ansible.builtin.setup:
+    - name: Join domain
+      win_domain_membership:
+        dns_domain_name: "{{ DOMAIN }}"
+        hostname: member
+        domain_admin_user: administrator@{{ DOMAIN }}
+        domain_admin_password: "{{ ADMIN_PASSWORD }}"
+        state: domain
+      register: domain_state
+    - win_reboot:
+      when: domain_state.reboot_required

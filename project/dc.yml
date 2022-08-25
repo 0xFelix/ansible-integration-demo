@@ -1,0 +1,70 @@
+- hosts: all
+  become: yes
+  vars:
+    DOMAIN: example.cnv
+    ADMIN_PASSWORD: pa$$w0rd
+    USER_NAME: user1
+    USER_PASSWORD: pa$$w0rd
+  tasks:
+    - name: Install samba
+      ansible.builtin.dnf:
+        name:
+          - samba
+          - samba-dc
+          - samba-client
+          - krb5-workstation
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: dc.{{ DOMAIN }}
+    - name: Configure SELinux
+      ansible.posix.seboolean:
+        name: "{{ item }}"
+        state: yes
+        persistent: yes
+      loop:
+        - samba_create_home_dirs
+        - samba_domain_controller
+        - samba_enable_home_dirs
+        - samba_portmapper
+        - use_samba_home_dirs
+    - name: Restore SELinux security contexts
+      ansible.builtin.command: restorecon -Rv /
+    - name: Remove smb.conf
+      ansible.builtin.file:
+        name: /etc/samba/smb.conf
+        state: absent
+    - name: Ensure /etc/systemd/resolved.conf.d exists
+      ansible.builtin.file:
+        name: /etc/systemd/resolved.conf.d
+        state: directory
+    - name: Configure systemd-resolved
+      ansible.builtin.copy:
+        dest: /etc/systemd/resolved.conf.d/custom.conf
+        content: |
+          [Resolve]
+          DNSStubListener=no
+          Domains=example.cnv
+          DNS={{ ansible_default_ipv4.address }}
+    - name: Restart systemd-resolved
+      ansible.builtin.systemd:
+        name: systemd-resolved
+        state: restarted
+    - name: Provision samba DC
+      ansible.builtin.command: samba-tool domain provision --server-role=dc --use-rfc2307 --dns-backend=SAMBA_INTERNAL --realm={{ DOMAIN | upper }} --domain={{ DOMAIN.split('.')[0] | upper }} --adminpass='{{ ADMIN_PASSWORD }}'
+    - name: Configure dns forwarder
+      ansible.builtin.lineinfile:
+        path: /etc/samba/smb.conf
+        regexp: 'dns forwarder = .+'
+        line: '        dns forwarder = {{ ansible_dns.nameservers[1] }}'
+    - name: Configure kerberos
+      ansible.builtin.copy:
+        src: /var/lib/samba/private/krb5.conf
+        dest: /etc/krb5.conf.d/samba-dc
+        remote_src: yes
+    - name: Start and enable samba
+      ansible.builtin.systemd:
+        name: samba
+        state: started
+        enabled: yes
+    - name: Add user to the domain
+      ansible.builtin.command: samba-tool user add '{{ USER_NAME }}' '{{ USER_PASSWORD }}'
