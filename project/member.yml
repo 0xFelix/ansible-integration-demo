@@ -1,14 +1,38 @@
 - hosts: all
   gather_facts: no
-	vars:
-		DOMAIN: example.cnv
+  vars:
+    DOMAIN: example.cnv
     ADMIN_PASSWORD: pa$$w0rd
   tasks:
+    - name: Get PipelineRun list
+      kubernetes.core.k8s_info:
+        api_version: tekton.dev/v1beta1
+        kind: PipelineRun
+        namespace: kubevirt
+        label_selectors:
+          - tekton.dev/pipeline=create-vm-and-run-ansible
+      register: pipelinerun_list
+      delegate_to: localhost
+    - name: Get DC VMI
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachineInstance
+        namespace: kubevirt
+        name: "{{ pipelinerun_list.resources[0].status.pipelineResults | items2dict(key_name='name').vmName }}"
+      register: dc_vmi
+      delegate_to: localhost
+    - name: Set DNS_SERVER var
+      ansible.builtin.set_fact:
+        DNS_SERVERS: "{{ dc_vmi.resources[0].status.interfaces[0].ipAddress }}"
     - name: Wait for system to become reachable over WinRM
       ansible.builtin.wait_for_connection:
         timeout: 3600
     - name: Gather facts for first time
       ansible.builtin.setup:
+    - name: Configure DNS
+      ansible.windows.win_dns_client:
+        adapter_names: '*'
+        dns_servers: "{{ DNS_SERVERS }}"
     - name: Join domain
       win_domain_membership:
         dns_domain_name: "{{ DOMAIN }}"
