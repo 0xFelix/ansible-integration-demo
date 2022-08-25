@@ -13,15 +13,12 @@
           - tekton.dev/pipeline=create-vm-and-run-ansible
       register: pipelinerun_list
       delegate_to: localhost
-    - name: Extract pipeline results
-      ansible.builtin.set_fact:
-        pipeline_results: "{{ pipelinerun_list.resources[0].status.pipelineResults | items2dict(key_name='name') }}"
     - name: Get DC VMI
       kubernetes.core.k8s_info:
         api_version: kubevirt.io/v1
         kind: VirtualMachineInstance
         namespace: kubevirt
-        name: "{{ pipeline_results.vmName }}"
+        name: "{{ pipelinerun_list.resources[0].status.pipelineResults | items2dict(key_name='name').vmName }}"
       register: dc_vmi
       delegate_to: localhost
     - name: Set DNS_SERVER var
