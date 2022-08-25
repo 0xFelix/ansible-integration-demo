@@ -18,7 +18,7 @@
         api_version: kubevirt.io/v1
         kind: VirtualMachineInstance
         namespace: kubevirt
-        name: "{{ pipelinerun_list.resources[0].status.pipelineResults | items2dict(key_name='name').vmName }}"
+        name: "{{ (pipelinerun_list.resources[0].status.pipelineResults | items2dict(key_name='name')).vmName }}"
       register: dc_vmi
       delegate_to: localhost
     - name: Set DNS_SERVER var
