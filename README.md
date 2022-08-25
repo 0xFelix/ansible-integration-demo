@@ -18,7 +18,9 @@ Make sure to setup `oc` and login first. Make also sure that [Tekton CLI](https:
 
 1. Run `oc create -f https://raw.githubusercontent.com/0xFelix/ansible-integration-demo/main/create-vm-and-run-ansible-pipeline.yaml`
 2. Run `oc create -f https://raw.githubusercontent.com/0xFelix/ansible-integration-demo/main/fedora-with-pub-key.yaml`
-3. Run `oc create -f https://raw.githubusercontent.com/0xFelix/ansible-integration-demo/windows/create-win-vm-and-run-ansible-pipeline.yaml`
+3. Run `oc create -f https://raw.githubusercontent.com/0xFelix/ansible-integration-demo/windows/windows10-unattend-winrm.yaml`
+4. Run `oc create -f https://raw.githubusercontent.com/0xFelix/ansible-integration-demo/windows/windows10-with-sysprep.yaml`
+5. Run `oc create -f https://raw.githubusercontent.com/0xFelix/ansible-integration-demo/windows/create-win-vm-and-run-ansible-pipeline.yaml`
 
 ## Running the pipelines
 
