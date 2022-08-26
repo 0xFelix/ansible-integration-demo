@@ -110,7 +110,7 @@ objects:
               name: tablet
               type: tablet
             interfaces:
-            - masquerade: {}
+            - bridge: {}
               model: virtio
               name: default
           features:
