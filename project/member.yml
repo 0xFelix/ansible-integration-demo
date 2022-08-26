@@ -41,5 +41,6 @@
         domain_admin_password: "{{ ADMIN_PASSWORD }}"
         state: domain
       register: domain_state
-    - win_reboot:
+    - name: Reboot machine
+      win_reboot:
       when: domain_state.reboot_required
