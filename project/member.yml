@@ -18,12 +18,12 @@
         api_version: kubevirt.io/v1
         kind: VirtualMachineInstance
         namespace: kubevirt
-        name: "{{ (pipelinerun_list.resources[0].status.pipelineResults | items2dict(key_name='name')).vmName }}"
+        name: "{{ ((pipelinerun_list.resources | selectattr('status.conditions.0.reason', 'equalto', 'Succeeded') | sort(attribute='status.completionTime') | last).status.pipelineResults | items2dict(key_name='name')).vmName }}"
       register: dc_vmi
       delegate_to: localhost
-    - name: Set DNS_SERVER var
+    - name: Set DNS_SERVERS var
       ansible.builtin.set_fact:
-        DNS_SERVERS: "{{ dc_vmi.resources[0].status.interfaces[0].ipAddress }}"
+        DNS_SERVERS: "{{ dc_vmi.resources.0.status.interfaces.0.ipAddress }}"
     - name: Wait for system to become reachable over WinRM
       ansible.builtin.wait_for_connection:
         timeout: 3600
